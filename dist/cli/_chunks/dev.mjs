@@ -36,7 +36,10 @@ var dev_default = defineCommand({
 			shuttingDown = true;
 			consola.info(`Received ${signal}, shutting down dev server...`);
 			try {
-				if (nitro) await nitro.close();
+				if (nitro) {
+					await nitro.hooks.callHook("close");
+					await nitro.close();
+				}
 			} catch (error) {
 				consola.error(error);
 			} finally {

@@ -32,6 +32,7 @@ export default defineCommand({
       consola.info(`Received ${signal}, shutting down dev server...`);
       try {
         if (nitro) {
+          await nitro.hooks.callHook("close");
           await nitro.close();
         }
       } catch (error) {
@@ -75,7 +76,8 @@ export default defineCommand({
               }
 
               consola.info(
-                "Nitro config updated:\n" + diff.map((entry) => `  ${entry.toString()}`).join("\n")
+                "Nitro config updated:\n" +
+                  diff.map((entry) => `  ${entry.toString()}`).join("\n"),
               );
 
               await (diff.every((e) => hmrKeyRe.test(e.key))
@@ -83,7 +85,7 @@ export default defineCommand({
                 : reload()); // Full reload
             },
           },
-        }
+        },
       );
       nitro.hooks.hookOnce("restart", reload);
       const server = new NitroDevServer(nitro);
