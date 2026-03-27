@@ -5,6 +5,12 @@ import { t as commonArgs } from "./common.mjs";
 import { consola } from "consola";
 import { build, createNitro, prepare } from "nitro/builder";
 const hmrKeyRe = /^runtimeConfig\.|routeRules\./;
+const shutdownSignals = [
+	"SIGINT",
+	"SIGTERM",
+	"SIGHUP",
+	"SIGBREAK"
+];
 var dev_default = defineCommand({
 	meta: {
 		name: "dev",
@@ -24,6 +30,22 @@ var dev_default = defineCommand({
 	async run({ args }) {
 		const rootDir = resolve(args.dir || args._dir || ".");
 		let nitro;
+		let shuttingDown = false;
+		const cleanupAndExit = async (signal) => {
+			if (shuttingDown) return;
+			shuttingDown = true;
+			consola.info(`Received ${signal}, shutting down dev server...`);
+			try {
+				if (nitro) await nitro.close();
+			} catch (error) {
+				consola.error(error);
+			} finally {
+				for (const sig of shutdownSignals) process.off(sig, onSignal);
+				process.exit(signal === "SIGINT" ? 130 : 0);
+			}
+		};
+		const onSignal = (signal) => cleanupAndExit(signal);
+		for (const signal of shutdownSignals) process.on(signal, onSignal);
 		const reload = async () => {
 			if (nitro) {
 				consola.info("Restarting dev server...");

@@ -7,6 +7,7 @@ import { commonArgs } from "../common.ts";
 import { NitroDevServer } from "../../dev/server.ts";
 
 const hmrKeyRe = /^runtimeConfig\.|routeRules\./;
+const shutdownSignals = ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"] as const;
 
 export default defineCommand({
   meta: {
@@ -21,6 +22,34 @@ export default defineCommand({
   async run({ args }) {
     const rootDir = resolve((args.dir || args._dir || ".") as string);
     let nitro: Nitro;
+    let shuttingDown = false;
+
+    const cleanupAndExit = async (signal: (typeof shutdownSignals)[number]) => {
+      if (shuttingDown) {
+        return;
+      }
+      shuttingDown = true;
+      consola.info(`Received ${signal}, shutting down dev server...`);
+      try {
+        if (nitro) {
+          await nitro.close();
+        }
+      } catch (error) {
+        consola.error(error);
+      } finally {
+        for (const sig of shutdownSignals) {
+          process.off(sig, onSignal);
+        }
+        process.exit(signal === "SIGINT" ? 130 : 0);
+      }
+    };
+
+    const onSignal = (signal: string) =>
+      cleanupAndExit(signal as (typeof shutdownSignals)[number]);
+    for (const signal of shutdownSignals) {
+      process.on(signal, onSignal);
+    }
+
     const reload = async () => {
       if (nitro) {
         consola.info("Restarting dev server...");
