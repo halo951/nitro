@@ -32,7 +32,10 @@ export default defineCommand({
       consola.info(`Received ${signal}, shutting down dev server...`);
       try {
         if (nitro) {
+          console.log('exit hook close')
           await nitro.hooks.callHook("close");
+          await nitro.hooks.callHookParallel("close");
+          console.log('exit hook close end')
           await nitro.close();
         }
       } catch (error) {
